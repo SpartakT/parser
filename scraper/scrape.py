@@ -13,7 +13,7 @@ RAW_TXT = os.path.join(DATA_DIR, "raw_data.txt")
 def scrape_bestchange():
     url = "https://www.bestchange.net/bitcoin-to-visa-mastercard-rub.html"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; Win64; x64) AppleWebKit/537.36"
     }
 
     response = requests.get(url, headers=headers, timeout=15)
@@ -29,7 +29,7 @@ def scrape_bestchange():
     )
 
     matches = pattern.findall(text)
-    print(f"Нашёл {len(matches)} обменников")
+    print(f"Найдено {len(matches)} обменников")
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     new_records = 0
@@ -50,5 +50,5 @@ def scrape_bestchange():
             except:
                 continue
 
-    print(f"Добавил {new_records} новых записей в raw_data.txt")
+    print(f"Добавлено {new_records} новых записей в raw_data.txt")
     return new_records
