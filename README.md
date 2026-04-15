@@ -1,20 +1,46 @@
-BestChange Scraper — BTC → Visa/Mastercard RUB
+# BestChange Scraper — BTC → Visa/Mastercard RUB
 
-**Описание проекта**  
+Скрапер собирает актуальные курсы обмена **Bitcoin → Visa/Mastercard RUB** с сайта BestChange.net.
 
-Это простой скрапер, который собирает актуальные курсы и информацию об обменниках с сайта BestChange (BTC → Visa/Mastercard RUB).  
-Каждый запуск собирает все предложения, сохраняет их в файл и фильтрует по моим условиям:  
-`reserve > 10 000 000 RUB` и `reviews > 5000`.
+Каждый запуск сохраняет данные в `data/raw_data.txt`, фильтрует надёжные обменники (резерв > 10 млн RUB и более 5000 отзывов) и строит график ТОП-10 по курсу.
 
-### Как запустить проект
+## Как запустить проект
 
 ```bash
-Установка библиотек
+# 1. Установка зависимостей
 pip install -r requirements.txt
+```
 
-python run.py all                  Рекомендуется: сбор данных + анализ + график
-python run.py scrape               Только собрать свежие данные
-python run.py analyze              Только анализ и построение графика
+## Основные команды
 
-Непрерывный режим
+```bash
+python run.py all        # сбор + анализ + график
+python run.py scrape     # только сбор данных
+python run.py analyze    # только анализ и график
+```
+
+## Непрерывный режим
+
+```bash
 python run.py continuous --hours 24 --interval 30
+```
+
+## Примеры использования
+
+```bash
+python run.py all
+python run.py continuous --hours 12 --interval 20
+```
+
+## Запуск через Prefect
+
+```bash
+prefect server start    # в отдельном терминале
+prefect deploy -n bestchange-every-hour
+```
+
+## Где смотреть результаты
+
+* Сырые данные: `data/raw_data.txt`
+* Графики и отчёты: `artifacts/`
+* Prefect UI: http://127.0.0.1:4200
