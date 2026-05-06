@@ -26,7 +26,7 @@ def run_analysis():
     filtered = []
     for line in lines:
         parts = line.strip().split('|')
-        if len(parts) < 5:
+        if len(parts) < 6:
             continue
 
         try:
@@ -35,7 +35,7 @@ def run_analysis():
             reserve = int(parts[3])
             reviews = int(parts[4])
 
-            if reserve > 10_000_000 and reviews >= 5000:
+            if reserve > 500_000 and reviews >= 100:
                 filtered.append({
                     "name": name,
                     "rate": rate,
@@ -51,9 +51,6 @@ def run_analysis():
 
     if not filtered:
         print("Нет данных для анализа.")
-        print("\nПервые 3 строки raw_data:")
-        for line in lines[:3]:
-            print(line.strip())
         return
 
     df = pd.DataFrame(filtered)
@@ -64,10 +61,10 @@ def run_analysis():
     # График
     plt.figure(figsize=(12, 6))
     top10 = df.nlargest(10, 'reserve')
-    plt.barh(top10['name'].str[:30], top10['reserve'])
+    plt.barh(top10['name'].str[:25], top10['reserve'])
     plt.xlabel('Резерв (RUB)')
     plt.ylabel('Обменник')
-    plt.title('Топ-10 обменников по резерву')
+    plt.title('Топ-10 обменников по резерву (BTC → RUB)')
     plt.tight_layout()
     plt.savefig(os.path.join(ARTIFACTS_DIR, "top_reserve.png"))
     plt.close()
