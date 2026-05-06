@@ -23,49 +23,33 @@ def scrape_bestchange():
         return 0
 
     soup = BeautifulSoup(response.text, 'html.parser')
+    text = soup.get_text(separator="\n", strip=True)
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     new_records = 0
 
     os.makedirs(DATA_DIR, exist_ok=True)
+    open(RAW_TXT, "w", encoding="utf-8").close()
 
-    rows = soup.find_all('tr')
+    pattern = r'([^\n]+?)\s+1 BTC\s+от\s+([\d\.]+)\s+до\s+([\d\.]+).*?(\d[\d\s,]+)\s*RUB.*?Карта.*?(\d+)'
+
+    matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
 
     with open(RAW_TXT, "a", encoding="utf-8") as f:
-        for row in rows:
-            cells = row.find_all(['td', 'th'])
-            if len(cells) < 4:
-                continue
-
-            full_text = row.get_text(separator=" ", strip=True)
-
-            if "1 BTC" not in full_text:
-                continue
-
+        for m in matches:
             try:
-                # Название обменника — обычно первый td с текстом
-                name_cell = cells[0].get_text(strip=True)
-                name = re.sub(r'Данный обменный пункт.*$', '', name_cell, flags=re.IGNORECASE | re.DOTALL).strip()
+                name = m[0].strip()
+                name = re.sub(r'Данный обменный пункт.*$', '', name, flags=re.IGNORECASE).strip()
                 name = re.sub(r'\s+', ' ', name).strip()
-                if len(name) < 3 or name in ["Обменник", ""]:
+
+                if len(name) < 3:
                     continue
 
-                # Курс (RUB за 1 BTC)
-                rate_match = re.search(r'(\d[\d\s,]*\.\d+|\d[\d\s,]*)', full_text)
-                rate = rate_match.group(1).replace(' ', '').replace(',', '.') if rate_match else '0'
-
-                # Резерв
-                reserve_match = re.search(r'(\d[\d\s,]+)\s*RUB', full_text)
-                reserve = reserve_match.group(1).replace(' ', '').replace(',', '') if reserve_match else '0'
-
-                # Отзывы
-                reviews_match = re.search(r'\[(\d+)\]', full_text)
-                reviews = reviews_match.group(1) if reviews_match else '0'
-
-                # Лимиты BTC
-                btc_match = re.search(r'от\s*([\d\.]+)\s*до\s*([\d\.]+)', full_text)
-                min_btc = btc_match.group(1) if btc_match else ''
-                max_btc = btc_match.group(2) if btc_match else ''
+                rate = "0"
+                reserve = m[3].replace(" ", "").replace(",", "")
+                reviews = m[4] if len(m) > 4 else "0"
+                min_btc = m[1]
+                max_btc = m[2]
 
                 line = f"{now}|{name}|{rate}|{reserve}|{reviews}|{min_btc}|{max_btc}\n"
                 f.write(line)
