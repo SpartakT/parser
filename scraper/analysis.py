@@ -35,7 +35,7 @@ def run_analysis():
             reviews = int(parts[4])
             rate = float(parts[2])
 
-            if reserve > 500_000 and reviews > 50:
+            if reserve > 100_000 and reviews > 10:
                 filtered.append({
                     "name": parts[1],
                     "rate": rate,
