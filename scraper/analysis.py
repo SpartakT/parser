@@ -2,8 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 from datetime import datetime
-from prefect import task, flow
-from prefect.artifacts import create_markdown_artifact
 
 DATA_DIR = "data"
 ARTIFACTS_DIR = "artifacts"
@@ -19,10 +17,11 @@ def run_analysis():
         print("Нет файла raw_data.txt")
         return
 
-    with open(RAW_TXT, "r", encoding="utf-8") as f:
+    with open(RAW_TXT, "r", encoding="utf-8", errors="replace") as f:
         lines = f.readlines()
 
     print(f"Анализ данных на момент: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Всего строк в файле: {len(lines)}")
 
     filtered = []
     for line in lines:
@@ -31,26 +30,30 @@ def run_analysis():
             continue
 
         try:
+            name = parts[1].strip()
+            rate = float(parts[2])
             reserve = int(parts[3])
             reviews = int(parts[4])
-            rate = float(parts[2])
 
-            if reserve > 100_000 and reviews > 10:
+            if reserve > 100_000 and reviews >= 0:
                 filtered.append({
-                    "name": parts[1],
+                    "name": name,
                     "rate": rate,
                     "reserve": reserve,
                     "reviews": reviews,
                     "min_btc": parts[5] if len(parts) > 5 else "",
                     "max_btc": parts[6] if len(parts) > 6 else ""
                 })
-        except (ValueError, IndexError):
+        except:
             continue
 
     print(f"Под фильтр подошло {len(filtered)} обменников")
 
     if not filtered:
         print("Нет данных для анализа.")
+        print("\nПервые 3 строки raw_data:")
+        for line in lines[:3]:
+            print(line.strip())
         return
 
     df = pd.DataFrame(filtered)
@@ -61,7 +64,7 @@ def run_analysis():
     # График
     plt.figure(figsize=(12, 6))
     top10 = df.nlargest(10, 'reserve')
-    plt.barh(top10['name'], top10['reserve'])
+    plt.barh(top10['name'].str[:30], top10['reserve'])
     plt.xlabel('Резерв (RUB)')
     plt.ylabel('Обменник')
     plt.title('Топ-10 обменников по резерву')
@@ -70,7 +73,6 @@ def run_analysis():
     plt.close()
 
     print("Артефакты успешно созданы в папке artifacts/")
-    print(f"Данные хранятся в: {csv_path}")
 
 
 if __name__ == "__main__":
