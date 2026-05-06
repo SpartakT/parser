@@ -14,8 +14,7 @@ if not os.path.exists(ARTIFACTS_DIR):
 RAW_TXT = os.path.join(DATA_DIR, "raw_data.txt")
 
 
-@task
-def analyze_data():
+def run_analysis():
     if not os.path.exists(RAW_TXT):
         print("Нет файла raw_data.txt")
         return
@@ -36,7 +35,6 @@ def analyze_data():
             reviews = int(parts[4])
             rate = float(parts[2])
 
-            # Смягчённый фильтр
             if reserve > 500_000 and reviews > 50:
                 filtered.append({
                     "name": parts[1],
@@ -57,7 +55,6 @@ def analyze_data():
 
     df = pd.DataFrame(filtered)
 
-    # Сохраняем CSV
     csv_path = os.path.join(ARTIFACTS_DIR, "bestchange_top.csv")
     df.to_csv(csv_path, index=False, encoding="utf-8")
 
@@ -72,31 +69,9 @@ def analyze_data():
     plt.savefig(os.path.join(ARTIFACTS_DIR, "top_reserve.png"))
     plt.close()
 
-    # Markdown artifact
-    markdown = f"""
-# Результаты анализа BestChange
-
-**Время анализа:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-**Найдено обменников после фильтра:** {len(df)}
-
-## Топ по резерву
-{df.nlargest(10, 'reserve')[['name', 'rate', 'reserve', 'reviews']].to_markdown(index=False)}
-    """
-
-    create_markdown_artifact(
-        key="bestchange-analysis",
-        markdown=markdown,
-        description="Результаты парсинга BestChange"
-    )
-
-    print("Артефакты успешно созданы в Prefect UI")
-
-
-@flow
-def analysis_flow():
-    analyze_data()
+    print("Артефакты успешно созданы в папке artifacts/")
+    print(f"Данные хранятся в: {csv_path}")
 
 
 if __name__ == "__main__":
-    analysis_flow()
+    run_analysis()
