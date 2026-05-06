@@ -3,6 +3,9 @@ from bs4 import BeautifulSoup
 import re
 from datetime import datetime
 import os
+import ssl
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 DATA_DIR = "data"
 RAW_TXT = os.path.join(DATA_DIR, "raw_data.txt")
@@ -10,17 +13,33 @@ RAW_TXT = os.path.join(DATA_DIR, "raw_data.txt")
 
 def scrape_bestchange():
     url = "https://www.bestchange.net/bitcoin-to-visa-mastercard-rub.html"
+
+    session = requests.Session()
+
+    class TLSAdapter(HTTPAdapter):
+        def init_poolmanager(self, *args, **kwargs):
+            ctx = ssl.create_default_context()
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+            ctx.set_ciphers('DEFAULT@SECLEVEL=1')
+            kwargs['ssl_context'] = ctx
+            return super().init_poolmanager(*args, **kwargs)
+
+    session.mount('https://', TLSAdapter())
+
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
     }
 
-    response = requests.get(url, headers=headers, timeout=30)
-    response.raise_for_status()
+    try:
+        response = session.get(url, headers=headers, timeout=30, verify=False)  # verify=False — временно
+        response.raise_for_status()
+    except Exception as e:
+        print(f"Ошибка запроса: {e}")
+        return 0
 
     soup = BeautifulSoup(response.text, 'html.parser')
     text = soup.get_text(separator=" ", strip=True)
 
-    # Улучшенный паттерн
     pattern = r'([A-Za-zА-Яа-я0-9\s\.\-]+?)\s+1 BTC\s+от\s+([\d\.]+)\s+до\s+([\d\.]+)\s+([\d\s,]+)\s*RUB Карта\s+([\d\s,]+?)(?:\s*\[(\d+)\])?'
 
     matches = re.findall(pattern, text)
