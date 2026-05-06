@@ -4,93 +4,48 @@ import re
 from datetime import datetime
 import os
 
-RAW_TXT = 'data/raw_data.txt'
+DATA_DIR = "data"
+RAW_TXT = os.path.join(DATA_DIR, "raw_data.txt")
 
-def ensure_dir():
-    os.makedirs('data', exist_ok=True)
 
 def scrape_bestchange():
-    url = "https://www.bestchange.com/bitcoin-to-visa-mastercard-rub.html"
+    url = "https://www.bestchange.net/bitcoin-to-visa-mastercard-rub.html"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
     }
 
-    print("🔄 Запрашиваем данные с BestChange...")
-    try:
-        response = requests.get(url, headers=headers, timeout=20)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"Ошибка запроса: {e}")
-        return []
+    response = requests.get(url, headers=headers, timeout=30)
+    response.raise_for_status()
 
     soup = BeautifulSoup(response.text, 'html.parser')
-    text = soup.get_text(separator="\n")
+    text = soup.get_text(separator=" ", strip=True)
 
-    pattern = re.compile(
-        r'([A-Za-zА-Яа-я0-9\s\-]+?)\s+'
-        r'This exchanger|This exchanger runs|This exchanger states|This exchanger does not fix|'
-        r'(?:via third-party payment systems\.)?\s*'
-        r'1 BTC\s*'
-        r'min ([\d.]+)\s*'
-        r'max ([\d.]+)\s*'
-        r'([\d\s,]+) RUB Card\s*'
-        r'([\d\s,]+?)\s*'
-        r'\[(\d+)\]',
-        re.IGNORECASE | re.DOTALL
-    )
+    # Улучшенный паттерн
+    pattern = r'([A-Za-zА-Яа-я0-9\s\.\-]+?)\s+1 BTC\s+от\s+([\d\.]+)\s+до\s+([\d\.]+)\s+([\d\s,]+)\s*RUB Карта\s+([\d\s,]+?)(?:\s*\[(\d+)\])?'
 
-    exchangers = []
-    matches = pattern.findall(text)
+    matches = re.findall(pattern, text)
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    new_records = 0
+
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+    with open(RAW_TXT, "a", encoding="utf-8") as f:
+        for m in matches:
+            try:
+                name = re.sub(r'\s+Данный обменный пункт.*$', '', m[0].strip())
+                rate = m[3].replace(" ", "").replace(",", ".")
+                reserve = m[4].replace(" ", "").replace(",", "")
+                reviews = m[5] if len(m) > 5 and m[5] else "0"
+                min_btc = m[1]
+                max_btc = m[2]
+
+                line = f"{now}|{name}|{rate}|{reserve}|{reviews}|{min_btc}|{max_btc}\n"
+                f.write(line)
+                new_records += 1
+            except:
+                continue
 
     print(f"Найдено потенциальных обменников: {len(matches)}")
-
-    for match in matches:
-        try:
-            name = match[0].strip()
-            min_btc = float(match[1])
-            max_btc = float(match[2])
-            rate_str = match[3].replace(' ', '').replace(',', '.')
-            reserve_str = match[4].replace(' ', '').replace(',', '')
-            reviews = int(match[5])
-
-            rate = float(rate_str)
-
-            exchangers.append({
-                'timestamp': datetime.now().isoformat(),
-                'exchanger': name,
-                'rate': rate,
-                'min_btc': min_btc,
-                'max_btc': max_btc,
-                'reserve': int(reserve_str),
-                'reviews': reviews,
-            })
-        except:
-            continue
-
-    filtered = [ex for ex in exchangers if ex['reserve'] > 10_000_000 and ex['reviews'] > 100]
-
-    print(f"Успешно спарсено: {len(exchangers)} | После фильтра: {len(filtered)}")
-    return filtered
-
-
-def save_raw_data(exchangers):
-    if not exchangers:
-        print("Нет данных для сохранения")
-        return
-
-    ensure_dir()
-    with open(RAW_TXT, 'a', encoding='utf-8') as f:
-        for ex in exchangers:
-            line = (f"{ex['timestamp']}|{ex['exchanger']}|{ex['rate']}|"
-                    f"{ex['min_btc']}|{ex['max_btc']}|{ex['reserve']}|{ex['reviews']}\n")
-            f.write(line)
-
-    print(f"Добавлено {len(exchangers)} новых записей в {RAW_TXT}")
-
-
-if __name__ == "__main__":
-    data = scrape_bestchange()
-    save_raw_data(data)
+    print(f"Добавлено новых записей: {new_records}")
+    return new_records
