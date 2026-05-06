@@ -1,38 +1,26 @@
-import requests
+iimport requests
 from bs4 import BeautifulSoup
 import re
 from datetime import datetime
 import os
-import ssl
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 DATA_DIR = "data"
 RAW_TXT = os.path.join(DATA_DIR, "raw_data.txt")
 
-
 def scrape_bestchange():
     url = "https://www.bestchange.net/bitcoin-to-visa-mastercard-rub.html"
-
-    session = requests.Session()
-
-    class TLSAdapter(HTTPAdapter):
-        def init_poolmanager(self, *args, **kwargs):
-            ctx = ssl.create_default_context()
-            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-            ctx.set_ciphers('DEFAULT@SECLEVEL=1')
-            kwargs['ssl_context'] = ctx
-            return super().init_poolmanager(*args, **kwargs)
-
-    session.mount('https://', TLSAdapter())
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
     }
 
     try:
-        response = session.get(url, headers=headers, timeout=30, verify=False)  # verify=False — временно
+        response = requests.get(url, headers=headers, timeout=30, verify=False)
         response.raise_for_status()
+        print("Страница успешно загружена")
     except Exception as e:
         print(f"Ошибка запроса: {e}")
         return 0
