@@ -1,4 +1,4 @@
-iimport requests
+import requests
 from bs4 import BeautifulSoup
 import re
 from datetime import datetime
