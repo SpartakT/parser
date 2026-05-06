@@ -23,38 +23,49 @@ def scrape_bestchange():
         return 0
 
     soup = BeautifulSoup(response.text, 'html.parser')
-    rows = soup.select('tr')
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     new_records = 0
 
     os.makedirs(DATA_DIR, exist_ok=True)
 
+    rows = soup.find_all('tr')
+
     with open(RAW_TXT, "a", encoding="utf-8") as f:
         for row in rows:
-            text = row.get_text(separator="|", strip=True)
-            if "1 BTC" not in text or len(text) < 50:
+            cells = row.find_all(['td', 'th'])
+            if len(cells) < 4:
                 continue
 
-            parts = [p.strip() for p in text.split('|') if p.strip()]
+            full_text = row.get_text(separator=" ", strip=True)
+
+            if "1 BTC" not in full_text:
+                continue
 
             try:
-                name = parts[0]
-                name = re.sub(r'Данный обменный пункт.*$', '', name, flags=re.IGNORECASE).strip()
+                # Название обменника — обычно первый td с текстом
+                name_cell = cells[0].get_text(strip=True)
+                name = re.sub(r'Данный обменный пункт.*$', '', name_cell, flags=re.IGNORECASE | re.DOTALL).strip()
                 name = re.sub(r'\s+', ' ', name).strip()
+                if len(name) < 3 or name in ["Обменник", ""]:
+                    continue
 
-                rate_match = re.search(r'(\d[\d\s,]*\.\d+|\d[\d\s,]*)', ' '.join(parts[1:]))
+                # Курс (RUB за 1 BTC)
+                rate_match = re.search(r'(\d[\d\s,]*\.\d+|\d[\d\s,]*)', full_text)
                 rate = rate_match.group(1).replace(' ', '').replace(',', '.') if rate_match else '0'
 
-                reserve_match = re.search(r'(\d[\d\s,]+)\s*RUB', ' '.join(parts))
+                # Резерв
+                reserve_match = re.search(r'(\d[\d\s,]+)\s*RUB', full_text)
                 reserve = reserve_match.group(1).replace(' ', '').replace(',', '') if reserve_match else '0'
 
-                reviews_match = re.search(r'\[(\d+)\]', ' '.join(parts))
+                # Отзывы
+                reviews_match = re.search(r'\[(\d+)\]', full_text)
                 reviews = reviews_match.group(1) if reviews_match else '0'
 
-                btc_limits = re.findall(r'от\s*([\d\.]+)\s*до\s*([\d\.]+)', ' '.join(parts))
-                min_btc = btc_limits[0][0] if btc_limits else ''
-                max_btc = btc_limits[0][1] if btc_limits else ''
+                # Лимиты BTC
+                btc_match = re.search(r'от\s*([\d\.]+)\s*до\s*([\d\.]+)', full_text)
+                min_btc = btc_match.group(1) if btc_match else ''
+                max_btc = btc_match.group(2) if btc_match else ''
 
                 line = f"{now}|{name}|{rate}|{reserve}|{reviews}|{min_btc}|{max_btc}\n"
                 f.write(line)
