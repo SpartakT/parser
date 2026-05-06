@@ -1,4 +1,4 @@
-iimport requests
+import requests
 from bs4 import BeautifulSoup
 import re
 from datetime import datetime
@@ -9,6 +9,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 DATA_DIR = "data"
 RAW_TXT = os.path.join(DATA_DIR, "raw_data.txt")
+
 
 def scrape_bestchange():
     url = "https://www.bestchange.net/bitcoin-to-visa-mastercard-rub.html"
@@ -28,7 +29,7 @@ def scrape_bestchange():
     soup = BeautifulSoup(response.text, 'html.parser')
     text = soup.get_text(separator=" ", strip=True)
 
-    pattern = r'([A-Za-zА-Яа-я0-9\s\.\-]+?)\s+1 BTC\s+от\s+([\d\.]+)\s+до\s+([\d\.]+)\s+([\d\s,]+)\s*RUB Карта\s+([\d\s,]+?)(?:\s*\[(\d+)\])?'
+    pattern = r'([A-Za-zА-Яа-я0-9\s\.\-\']+?)\s+1 BTC\s+от\s+([\d\.]+)\s+до\s+([\d\.]+)\s+([\d\s,]+)\s*RUB Карта\s+([\d\s,]+?)(?:\s*\[(\d+)\])?'
 
     matches = re.findall(pattern, text)
 
