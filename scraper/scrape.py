@@ -3,9 +3,6 @@ from bs4 import BeautifulSoup
 import re
 from datetime import datetime
 import os
-import urllib3
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 DATA_DIR = "data"
 RAW_TXT = os.path.join(DATA_DIR, "raw_data.txt")
@@ -19,19 +16,14 @@ def scrape_bestchange():
     }
 
     try:
-        response = requests.get(url, headers=headers, timeout=30, verify=False)
+        response = requests.get(url, headers=headers, timeout=40)
         response.raise_for_status()
-        print("Страница успешно загружена")
     except Exception as e:
         print(f"Ошибка запроса: {e}")
         return 0
 
     soup = BeautifulSoup(response.text, 'html.parser')
-    text = soup.get_text(separator=" ", strip=True)
-
-    pattern = r'([A-Za-zА-Яа-я0-9\s\.\-\']+?)\s+1 BTC\s+от\s+([\d\.]+)\s+до\s+([\d\.]+)\s+([\d\s,]+)\s*RUB Карта\s+([\d\s,]+?)(?:\s*\[(\d+)\])?'
-
-    matches = re.findall(pattern, text)
+    rows = soup.select('tr')
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     new_records = 0
@@ -39,21 +31,41 @@ def scrape_bestchange():
     os.makedirs(DATA_DIR, exist_ok=True)
 
     with open(RAW_TXT, "a", encoding="utf-8") as f:
-        for m in matches:
+        for row in rows:
+            text = row.get_text(separator="|", strip=True)
+            if "1 BTC" not in text or len(text) < 50:
+                continue
+
+            parts = [p.strip() for p in text.split('|') if p.strip()]
+
             try:
-                name = re.sub(r'\s+Данный обменный пункт.*$', '', m[0].strip())
-                rate = m[3].replace(" ", "").replace(",", ".")
-                reserve = m[4].replace(" ", "").replace(",", "")
-                reviews = m[5] if len(m) > 5 and m[5] else "0"
-                min_btc = m[1]
-                max_btc = m[2]
+                name = parts[0]
+                name = re.sub(r'Данный обменный пункт.*$', '', name, flags=re.IGNORECASE).strip()
+                name = re.sub(r'\s+', ' ', name).strip()
+
+                rate_match = re.search(r'(\d[\d\s,]*\.\d+|\d[\d\s,]*)', ' '.join(parts[1:]))
+                rate = rate_match.group(1).replace(' ', '').replace(',', '.') if rate_match else '0'
+
+                reserve_match = re.search(r'(\d[\d\s,]+)\s*RUB', ' '.join(parts))
+                reserve = reserve_match.group(1).replace(' ', '').replace(',', '') if reserve_match else '0'
+
+                reviews_match = re.search(r'\[(\d+)\]', ' '.join(parts))
+                reviews = reviews_match.group(1) if reviews_match else '0'
+
+                btc_limits = re.findall(r'от\s*([\d\.]+)\s*до\s*([\d\.]+)', ' '.join(parts))
+                min_btc = btc_limits[0][0] if btc_limits else ''
+                max_btc = btc_limits[0][1] if btc_limits else ''
 
                 line = f"{now}|{name}|{rate}|{reserve}|{reviews}|{min_btc}|{max_btc}\n"
                 f.write(line)
                 new_records += 1
-            except:
+
+            except Exception:
                 continue
 
-    print(f"Найдено потенциальных обменников: {len(matches)}")
-    print(f"Добавлено новых записей: {new_records}")
+    print(f"Найдено и добавлено обменников: {new_records}")
     return new_records
+
+
+if __name__ == "__main__":
+    scrape_bestchange()
