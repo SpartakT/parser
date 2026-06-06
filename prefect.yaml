@@ -1,0 +1,11 @@
+name: bestchange-scraper
+prefect-version: ">=3.0.0"
+
+deployments:
+  - name: bestchange-every-hour
+    description: Скрапер каждые 60 минут (txt версия)
+    entrypoint: scraper/flow.py:bestchange_flow
+    schedule:
+      interval: PT1H
+    work_pool:
+      name: default
